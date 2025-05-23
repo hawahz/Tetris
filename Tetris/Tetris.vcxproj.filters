@@ -36,6 +36,9 @@
     <ClCompile Include="ASCIIRenderer.cpp">
       <Filter>源文件\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="PyInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AbstractRenderer.h">
@@ -45,6 +48,9 @@
       <Filter>头文件\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="Tetris.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PyInterface.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

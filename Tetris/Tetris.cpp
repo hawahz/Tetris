@@ -116,7 +116,9 @@ void tetris::Tetris::renderUpdate() {
 		return;
 	}
 	renderer->clear();
-	renderEvent();
+	for (auto func : renderEvents) {
+		func(*this->renderer);
+	}
 	for (int i = 0; i < this->subWidth + 2; i++) {
 		renderer->renderPixel(renderer->startX - 1 + i, renderer->startY - 1, renderer->wallColorTop);
 	}

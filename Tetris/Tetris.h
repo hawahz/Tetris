@@ -31,6 +31,7 @@ namespace tetris {
 		void render(AbstractRenderer* renderer);
 		void renderShadow(AbstractRenderer* renderer);
 		void rotate(int dir = 1);
+		
 	};
 	const Box boxes[] = {
 		Box(
@@ -68,14 +69,13 @@ namespace tetris {
 		unsigned int gameTick = 0;
 		unsigned int loopLen = 10;
 		
-		
 		AbstractRenderer* renderer;
 		Box* currentBox;
 
 		void logicUpdate();
 		void renderUpdate();
 		void eliminateTest();
-		void (*renderEvent)();
+		std::vector<void (*)(AbstractRenderer&)> renderEvents;
 		bool fall();
 		bool pause = false;
 		bool gameover = false;

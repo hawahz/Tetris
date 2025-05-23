@@ -147,11 +147,13 @@
     <ClCompile Include="AbstractRenderer.cpp" />
     <ClCompile Include="ASCIIRenderer.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="PyInterface.cpp" />
     <ClCompile Include="Tetris.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AbstractRenderer.h" />
     <ClInclude Include="ASCIIRenderer.h" />
+    <ClInclude Include="PyInterface.h" />
     <ClInclude Include="Tetris.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
