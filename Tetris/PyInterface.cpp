@@ -7,15 +7,21 @@ PYBIND11_MODULE(Tetris, m) {
     m.def("step", &pyinter::step);
     m.def("get_map", &pyinter::getMap);
     m.def("auto_play", &pyinter::autoPlay);
+    m.def("is_solid", &pyinter::isSolid);
     //m.def("set_sub_window", &setSubWindow);
 }
 
 void PyInterface::init() {
 }
 
+PyInterface* pyinter::getInter() {
+    return pyInter;
+}
+
 void pyinter::init() {
     if (!::pyInter) {
         ::pyInter = new PyInterface();
+        std::srand(std::time(nullptr));
     }
     if (::pyInter->game) {
         delete ::pyInter->game;
@@ -23,7 +29,7 @@ void pyinter::init() {
     if (!::renderer) {
         renderer = new ASCIIRenderer(40, 34);
     }
-    maxScore = 0;
+    average = 0;
     ::pyInter->game = new tetris::Tetris(renderer);
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_FONT_INFOEX fontInfo;
@@ -66,13 +72,15 @@ std::vector<int> pyinter::getMap() {
 
 void pyinter::autoPlay() {
     ::pyInter->game->renderEvents.push_back(renderMaxScore);
-    while (true) {
+    int times = 0;
+    while (1) {
         if (::pyInter->game->gameover) {
-            maxScore = max(::pyInter->game->score, maxScore);
+            average = (::pyInter->game->score + average * times)/float(times+1);
             ::pyInter->game->gameover = false;
             ::pyInter->game->reset();
+            times++;
         }
-
+        /*
         int x = 0, score = 0, minHx = 0, minH = ::pyInter->game->subHeight;
         tetris::Rotate rm = ::pyInter->game->currentBox->state, rHm = ::pyInter->game->currentBox->state;
         ::pyInter->game->currentBox->posX = 0;
@@ -103,17 +111,97 @@ void pyinter::autoPlay() {
             ::pyInter->game->currentBox->posX = minHx;
             ::pyInter->game->currentBox->state = rHm;
         }
+        */
+        int x = 0, score = -1000000;
+        tetris::Rotate rm = ::pyInter->game->currentBox->state, rHm = ::pyInter->game->currentBox->state;
+        ::pyInter->game->currentBox->posX = 0;
+        for (int j = 0; j < 4; j++) {
+            ::pyInter->game->currentBox->state = tetris::Rotate(j);
+            ::pyInter->game->currentBox->posX = -2;
+            for (int i = 0; i < ::pyInter->game->subWidth + 4; i++, ::pyInter->game->currentBox->posX++) {
+                if (!::pyInter->game->currentBox->isValidPos())
+                    continue;
+                //::pyInter->game->renderUpdate();
+                int sc = ::pyInter->game->searchExtruder(weightEvaluate);
+                //Sleep(10);
+                if (score < sc) {
+                    x = ::pyInter->game->currentBox->posX;
+                    score = sc;
+                    rm = tetris::Rotate(::pyInter->game->currentBox->state);
+                }
+                
+            }
+        }
+        ::pyInter->game->currentBox->posX = x;
+        ::pyInter->game->currentBox->state = rm;
+
+
+
+
+
+
 
         while (::pyInter->game->fall()) {
         }
 
         ::pyInter->game->update(50);
-
         ::pyInter->game->update(50);
+        //Sleep(50);
     }
 }
 
+bool pyinter::isSolid(int x, int y) {
+    return ::pyInter->game->mapValid(x, y);
+}
+
 void renderMaxScore(AbstractRenderer& r) {
-    r.renderString(::pyInter->game->subWidth + 2 + ::pyInter->game->renderer->startX + 3, 11, "max:");
-    r.renderString(::pyInter->game->subWidth + 2 + ::pyInter->game->renderer->startX + 3 + 4, 11, std::to_string(maxScore));
+    r.renderString(::pyInter->game->subWidth + 2 + ::pyInter->game->renderer->startX + 3, 11, "ave:");
+    r.renderString(::pyInter->game->subWidth + 2 + ::pyInter->game->renderer->startX + 3 + 4, 11, std::to_string(average));
+}
+
+float weightEvaluate(tetris::Tetris* game) {
+    float weight = .0;
+    //TODO ÓÅ»¯
+    int height = 0;
+    int* heightMap = new int[game->subWidth] {-1};
+    for (int y = game->subHeight - 1; y >= 0; y--, height++) {
+        if (game->map[y] == game->full) {
+            //weight += 2;
+            continue;
+        }
+        if (!game->map[y]) {
+            break;
+        }
+
+        for (int x = 0; x < game->subWidth; x++) {
+            if (game->mapValid(x, y)) {
+                for (int py = y - 1; py >= 0; py--) {
+                    if (game->map[py] == game->full) {
+                        continue;
+                    }
+                    if (!game->map[py]) {
+                        break;
+                    }
+                    if (!game->mapValid(x, py)) {
+                        weight -= 4;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    for (int x = 0; x < game->subWidth; x++) {
+        for (int y = game->subHeight - 1; y >= 0; y--) {
+            if (game->mapValid(x, y)) {
+                heightMap[x] = max(heightMap[x], game->subHeight - y - 1);
+            }
+        }
+    }
+
+    int bumpiness = 0;
+    for (int x = 0; x < game->subWidth - 1; x++) {
+        bumpiness += abs(heightMap[x + 1] - heightMap[x]);
+    }
+
+    return weight * 2 - height * height * height - bumpiness;
 }

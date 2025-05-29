@@ -1,4 +1,13 @@
 #include "Tetris.h"
+#define KEY_d 100
+#define KEY_D 68
+#define KEY_a 97
+#define KEY_A 65
+#define KEY_s 115
+#define KEY_S 83
+#define KEY_r 114
+#define KEY_R 113
+#define KEY_SPACE 32
 
 tetris::Box::Box(int shape0, int shape1): posX(0), posY(-4), shape(nullptr){
 	shapes[0] = shape0;
@@ -73,7 +82,7 @@ tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeig
 	renderer->setSubWindow(3, 3, renderer->getHeight() - 6, renderer->getWidth() - 6);
 	tetris::game = this;
 	map = new unsigned int[subHeight]{0};
-	for (int i = 0; i < subHeight; i++) {
+	for (int i = 0; i < (int) subHeight; i++) {
 		map[i] = 0;
 	}
 	currentBox = new Box();
@@ -83,7 +92,7 @@ void tetris::Tetris::logicUpdate() {
 	if (!fall()) {
 		for (int x = 0; x < 4; x++) {
 			for (int y = 0; y < 4; y++) {
-				map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << x + this->currentBox->posX;
+				map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX);
 			}
 		}
 		delete this->currentBox;
@@ -119,19 +128,19 @@ void tetris::Tetris::renderUpdate() {
 	for (auto func : renderEvents) {
 		func(*this->renderer);
 	}
-	for (int i = 0; i < this->subWidth + 2; i++) {
+	for (int i = 0; i < (int) this->subWidth + 2; i++) {
 		renderer->renderPixel(renderer->startX - 1 + i, renderer->startY - 1, renderer->wallColorTop);
 	}
-	for (int i = 0; i < this->subHeight; i++) {
+	for (int i = 0; i < (int) this->subHeight; i++) {
 		renderer->renderPixel(renderer->startX - 1, i + renderer->startY, renderer->wallColorSide);
 		renderer->renderPixel(renderer->startX + renderer->subWidth, i + renderer->startY, renderer->wallColorSide);
 	}
-	for (int i = 0; i < this->subWidth + 2; i++) {
+	for (int i = 0; i < (int) this->subWidth + 2; i++) {
 		renderer->renderPixel(renderer->startX - 1 + i, renderer->startY + this->subHeight, renderer->wallColorBottom);
 	}
-	for (int i = 0; i < this->subHeight; i++) {
+	for (int i = 0; i < (int) this->subHeight; i++) {
 		if (this->map[i]) {
-			for (int j = 0; j < this->subWidth; j++) {
+			for (int j = 0; j < (int) this->subWidth; j++) {
 				renderer->renderPixel(renderer->startX + j, renderer->startY + i, renderer->blockColor * !mapValid(j, i));
 			}
 		}
@@ -196,6 +205,35 @@ bool tetris::Tetris::fall() {
 	return true;
 }
 
+std::pair<int, int> tetris::Tetris::search(float (*fx)(unsigned int*)) {
+
+	return std::pair<int, int>();
+}
+
+float tetris::Tetris::searchExtruder(float(*fx)(Tetris*)) {
+	int prevY = this->currentBox->posY;
+	while (fall()) {
+	}
+
+	for (int x = 0; x < 4; x++) {
+		for (int y = 0; y < 4; y++) {
+			map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX);
+		}
+	}
+
+	float sc = fx(this);
+
+	for (int x = 0; x < 4; x++) {
+		for (int y = 0; y < 4; y++) {
+			map[y + this->currentBox->posY] &= ~(this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX));
+		}
+	}
+
+	this->currentBox->posY = prevY;
+
+	return sc;
+}
+
 int tetris::Tetris::scoreExtruder() {
 	int prevY = this->currentBox->posY;
 	while (fall()) {
@@ -203,7 +241,7 @@ int tetris::Tetris::scoreExtruder() {
 
 	for (int x = 0; x < 4; x++) {
 		for (int y = 0; y < 4; y++) {
-			map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << x + this->currentBox->posX;
+			map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX);
 		}
 	}
 
@@ -211,7 +249,7 @@ int tetris::Tetris::scoreExtruder() {
 
 	for (int x = 0; x < 4; x++) {
 		for (int y = 0; y < 4; y++) {
-			map[y + this->currentBox->posY] &= ~(this->currentBox->isPixelValidLocal(x, y) << x + this->currentBox->posX);
+			map[y + this->currentBox->posY] &= ~(this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX));
 		}
 	}
 
@@ -228,11 +266,11 @@ int tetris::Tetris::heightExtruder() {
 
 	for (int x = 0; x < 4; x++) {
 		for (int y = 0; y < 4; y++) {
-			map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << x + this->currentBox->posX;
+			map[y + this->currentBox->posY] |= this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX);
 		}
 	}
 
-	for (int i = 0; i < this->subHeight; i++) {
+	for (int i = 0; i < (int) this->subHeight; i++) {
 		if (this->map[i] != 0) {
 			height = subHeight - i;
 			break;
@@ -241,7 +279,7 @@ int tetris::Tetris::heightExtruder() {
 
 	for (int x = 0; x < 4; x++) {
 		for (int y = 0; y < 4; y++) {
-			map[y + this->currentBox->posY] &= ~(this->currentBox->isPixelValidLocal(x, y) << x + this->currentBox->posX);
+			map[y + this->currentBox->posY] &= ~(this->currentBox->isPixelValidLocal(x, y) << (x + this->currentBox->posX));
 		}
 	}
 
@@ -261,12 +299,7 @@ int tetris::Tetris::eliminateCount() {
 }
 
 inline bool tetris::Tetris::mapValid(int x, int y) {
-	bool flag = map[y];
-	for (int i = 0; i < subHeight; i++) {
-		unsigned int j = map[i];
-		int p = 0;
-	}
-	return y < subHeight && x < subWidth && y + 1 && x + 1 && !(map[y] >> x & 1);
+	return y < (int) subHeight && x < (int) subWidth && y + 1 && x + 1 && !((int) map[y] >> x & 1);
 }
 
 void tetris::Tetris::move(int step) {
@@ -284,7 +317,7 @@ void tetris::Tetris::reset() {
 
 void tetris::Tetris::update(int delta) {
 	if (pause) {
-		if (_kbhit() && _getch() == 112)
+		if (_kbhit() && _getch() == 'p')
 			pause = false;
 		else {
 			renderUpdate();
@@ -313,24 +346,29 @@ void tetris::Tetris::update(int delta) {
 	if (_kbhit()) {//如果有按键按下，则_kbhit()函数返回真
 		int ch = _getch();//使用_getch()函数获取按下的键值
 		switch (ch) {
-		case 97:
+		case 'A':
+		case 'a':
 			move(-1);
 			break;
-		case 100:
+		case 'D':
+		case 'd':
 			move(1);
 			break;
-		case 114:
+		case 'R':
+		case 'r':
 			this->currentBox->rotate();
 			break;
-		case 115:
+		case 'S':
+		case 's':
 			this->logicUpdate();
 			gameTick = 0;
 			break;
-		case 32:
+		case ' ':
 			while (fall()) {
 			}
 			break;
-		case 112:
+		case 'P':
+		case 'p':
 			pause = true;
 			break;
 		default:
@@ -347,7 +385,7 @@ void tetris::Tetris::setSubWindow(unsigned int x, unsigned int y, unsigned int w
 	map = new unsigned int[subHeight] {0};
 	this->currentBox->posX = this->subWidth / 2 - 2;
 	full = 0;
-	for (int i = 0; i < subWidth; i++) {
+	for (int i = 0; i < (int) subWidth; i++) {
 		full |= 1 << i;
 	}
 }

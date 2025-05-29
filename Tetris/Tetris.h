@@ -75,6 +75,13 @@ namespace tetris {
 		void logicUpdate();
 		void renderUpdate();
 		void eliminateTest();
+
+		/*
+		*
+		* std::vector<void (*)(AbstractRenderer&)> renderEvents
+		* 在此向量当中的所有函数都会在屏幕画布被清除后立即执行绘制操作
+		*
+		*/
 		std::vector<void (*)(AbstractRenderer&)> renderEvents;
 		bool fall();
 		bool pause = false;
@@ -87,6 +94,18 @@ namespace tetris {
 		unsigned int* map;
 		int score = 0;
 		int full = 0;
+
+		/*
+		*
+		* std::pair<int, int> searchExtruder(float (*)(unsigned int* map))
+		* 传入启发式函数，根据函数得值找到最佳位置
+		* 返回值第一位是位置，第二位是旋转状态
+		*
+		*/
+		std::pair<int, int> search(float (*)(unsigned int* map));
+
+
+		float searchExtruder(float (*fx)(Tetris*));
 
 		/*
 		* 

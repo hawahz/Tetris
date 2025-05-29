@@ -1,17 +1,11 @@
 #pragma once
 #include <vector>
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <queue>
 #include "ASCIIRenderer.h"
 #include "Tetris.h"
 #define UPDATE_RATE 5
-
-typedef struct {
-	int x;
-	float weight;
-} XxWeight;
-
-
 
 class PyInterface {
 public:
@@ -21,16 +15,24 @@ public:
 
 static PyInterface* pyInter = nullptr;
 static ASCIIRenderer* renderer = nullptr;
-static int maxScore = 0;
+static float average = 0;
 
 void renderMaxScore(AbstractRenderer&);
-float weightEvaluate();
+float weightEvaluate(tetris::Tetris*);
+
+struct XxWeight {
+	int x;
+	float weight;
+
+};
 
 namespace pyinter {
+	PyInterface* getInter();
 	void init();
 	void run();
 	void step();
 	std::vector<int> getMap();
 	void autoPlay();
+	bool isSolid(int x, int y);
 }
 
