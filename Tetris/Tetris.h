@@ -7,7 +7,7 @@
 #define SCORE_X 30
 
 namespace tetris {
-	
+	class Tetris;
 	enum Rotate {
 		UP,
 		LEFT,
@@ -19,12 +19,14 @@ namespace tetris {
 	public:
 		int shapes[2];
 		Rotate state = UP;
-		const Box* const shape;
+		const Box* shape;
+		const int shapeId;
+		tetris::Tetris* const parent;
 	public:
 		int posX, posY;
 		Box(int shape0, int shape1);
-		Box(const Box* shape, int posX = 0, int posY = 0);
-		Box();
+		Box(int shapeId, tetris::Tetris*, int posX = 0, int posY = 0);
+		Box(tetris::Tetris*);
 		bool isPixelValid(int x, int y);
 		bool isPixelValidLocal(int x, int y);
 		bool isValidPos();
@@ -86,11 +88,13 @@ namespace tetris {
 		bool fall();
 		bool pause = false;
 		bool gameover = false;
+		bool killed = false;
 		std::queue<int> actions;
 		
 	public:
 		Tetris(AbstractRenderer* renderer);
 		unsigned int subWidth, subHeight;
+		static int width, height;
 		unsigned int* map;
 		int score = 0;
 		int full = 0;
@@ -150,7 +154,7 @@ namespace tetris {
 		* 对游戏状态进行更新, delta值决定更新速度
 		*
 		*/
-		void update(int delta);
+		void update(int delta, bool autoLoop = true);
 
 		/*
 		*
@@ -167,10 +171,19 @@ namespace tetris {
 		*
 		*/
 		void reset();
+
+		void setPos(int x, int rotate);
+
+		/*
+		*
+		* std::vector<int> getInfo()
+		* 获取游戏状态
+		* height, holes, bumpiness, score/10
+		*
+		*/
+		std::vector<int> getInfo();
 		void setSubWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height);
 	};
-
-	static Tetris* game;
 }
 
 

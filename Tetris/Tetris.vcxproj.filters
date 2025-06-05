@@ -39,6 +39,9 @@
     <ClCompile Include="PyInterface.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ASCIIDisplayWindow.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AbstractRenderer.h">
@@ -51,6 +54,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="PyInterface.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ASCIIDisplayWindow.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

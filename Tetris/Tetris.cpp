@@ -9,21 +9,27 @@
 #define KEY_R 113
 #define KEY_SPACE 32
 
-tetris::Box::Box(int shape0, int shape1): posX(0), posY(-4), shape(nullptr){
+int tetris::Tetris::width = 0;
+int tetris::Tetris::height = 0;
+
+tetris::Box::Box(int shape0, int shape1): posX(0), posY(-4), shape(nullptr), parent(nullptr), shapeId(-1){
 	shapes[0] = shape0;
 	shapes[1] = shape1;
 }
 
-tetris::Box::Box(const Box* shape, int posX, int posY) : posX(posX), posY(posY), shape(shape) {
+tetris::Box::Box(int shapeId, tetris::Tetris* p, int posX, int posY) : posX(posX), posY(posY), shape(&boxes[shapeId]), parent(p), shapeId(shapeId) {
 	shapes[0] = 0;
 	shapes[1] = 0;
 }
 
-tetris::Box::Box() : posX(tetris::game->subWidth / 2 - 2), posY(0), shape(&boxes[std::rand() % 7]){
+tetris::Box::Box(tetris::Tetris* p) : parent(p), posX(tetris::Tetris::width / 2 - 2), posY(0), shapeId(std::rand() % 7) {
+	shape = &boxes[shapeId];
 	shapes[0] = 0;
 	shapes[1] = 0;
 	state = tetris::Rotate(std::rand() % 4);
 }
+
+
 
 bool tetris::Box::isPixelValid(int x, int y) {
 	return isPixelValidLocal(x + posX, y + posY);
@@ -37,7 +43,7 @@ bool tetris::Box::isPixelValidLocal(int x, int y) {
 bool tetris::Box::isValidPos() {
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
-			if (isPixelValidLocal(i, j) && !tetris::game->mapValid(i + this->posX, j + this->posY))
+			if (isPixelValidLocal(i, j) && !parent->mapValid(i + this->posX, j + this->posY))
 				return false;
 		}
 	}
@@ -78,14 +84,13 @@ void tetris::Box::rotate(int dir) {
 	this->state = tetris::Rotate((this->state - dir < 0 ? this->state - dir + 4 : this->state - dir) % 4);
 }
 
-tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeight(0), subWidth(0) {
+tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeight(tetris::Tetris::height), subWidth(tetris::Tetris::width) {
 	renderer->setSubWindow(3, 3, renderer->getHeight() - 6, renderer->getWidth() - 6);
-	tetris::game = this;
 	map = new unsigned int[subHeight]{0};
 	for (int i = 0; i < (int) subHeight; i++) {
 		map[i] = 0;
 	}
-	currentBox = new Box();
+	currentBox = new Box(this);
 }
 
 void tetris::Tetris::logicUpdate() {
@@ -96,7 +101,7 @@ void tetris::Tetris::logicUpdate() {
 			}
 		}
 		delete this->currentBox;
-		this->currentBox = new Box();
+		this->currentBox = new Box(this);
 		this->eliminateTest();
 		if (map[1])
 			gameover = true;
@@ -315,7 +320,18 @@ void tetris::Tetris::reset() {
 	this->score = 0;
 }
 
-void tetris::Tetris::update(int delta) {
+void tetris::Tetris::setPos(int x, int rotate) {
+	int prevX = this->currentBox->posX;
+	tetris::Rotate prevState = this->currentBox->state;
+	this->currentBox->posX = x;
+	this->currentBox->state = tetris::Rotate(rotate % 4);
+	if (this->currentBox->isValidPos())
+		return;
+	this->currentBox->posX = prevX;
+	this->currentBox->state = prevState;
+}
+
+void tetris::Tetris::update(int delta, bool autoLoop) {
 	if (pause) {
 		if (_kbhit() && _getch() == 'p')
 			pause = false;
@@ -324,7 +340,7 @@ void tetris::Tetris::update(int delta) {
 			return;
 		}
 	}
-	if (gameover) {
+	if (gameover && autoLoop) {
 		if (_kbhit()) {
 			gameover = false;
 			reset();
@@ -371,6 +387,10 @@ void tetris::Tetris::update(int delta) {
 		case 'p':
 			pause = true;
 			break;
+		case 'e':
+		case 'E':
+			killed = true;
+			break;
 		default:
 			return;
 		}
@@ -378,9 +398,50 @@ void tetris::Tetris::update(int delta) {
 	}
 }
 
+std::vector<int> tetris::Tetris::getInfo() {
+	int height = 0, holes = 0;
+	int* heightMap = new int[this->subWidth] {-1};
+	for (int x = 0; x < this->subWidth; x++) {
+		bool flag = false;
+		for (int y = 0; y < this->subHeight; y++) {
+			if (!flag && !this->mapValid(x, y)) {
+				flag = true;
+				heightMap[x] = this->subHeight - y - 1;
+				continue;
+			}
+			if (this->mapValid(x, y)) {
+				holes++;
+			}
+		}
+	}
+
+	int new_cleared = 0;
+	for (int i = 0; i < this->subHeight; i++) {
+		if (this->map[i] == full) {
+			new_cleared++;
+		}
+	}
+
+	int bumpiness = 0;
+	for (int x = 0; x < this->subWidth - 1; x++) {
+		bumpiness += abs(heightMap[x + 1] - heightMap[x]);
+	}
+
+	return std::vector<int>({ 
+		height,
+		holes,
+		bumpiness,
+		this->score / 10 ,
+		new_cleared,
+		this->currentBox->shapeId
+	});
+}
+
 void tetris::Tetris::setSubWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) {
 	this->subWidth = width;
 	this->subHeight = height;
+	tetris::Tetris::width = width;
+	tetris::Tetris::height = height;
 	this->renderer->setSubWindow(x, y, width, height);
 	map = new unsigned int[subHeight] {0};
 	this->currentBox->posX = this->subWidth / 2 - 2;

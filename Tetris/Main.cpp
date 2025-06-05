@@ -15,7 +15,11 @@ void renderTips(AbstractRenderer& renderer) {
 
 int main() {
 	//std::cout << (int) '\s' << std::endl;
-	pyinter::init();
-	//pyinter::getInter()->game->renderEvents.push_back(renderTips);
-	pyinter::autoPlay();
+	PyInterface p;
+	p.init();
+	//std::vector<int> info = p.getInfo();
+	p.run();
+	Sleep(1000);
+	p.init();
+	p.run();
 }

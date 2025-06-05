@@ -9,6 +9,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		PydRelease|x64 = PydRelease|x64
+		PydRelease|x86 = PydRelease|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
@@ -17,6 +19,10 @@ Global
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Debug|x64.Build.0 = Release|x64
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Debug|x86.ActiveCfg = Debug|Win32
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Debug|x86.Build.0 = Debug|Win32
+		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.PydRelease|x64.ActiveCfg = PydRelease|x64
+		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.PydRelease|x64.Build.0 = PydRelease|x64
+		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.PydRelease|x86.ActiveCfg = PydRelease|Win32
+		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.PydRelease|x86.Build.0 = PydRelease|Win32
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Release|x64.ActiveCfg = Release|x64
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Release|x64.Build.0 = Release|x64
 		{5889D4DB-3566-4812-BE68-2FF503ABBB79}.Release|x86.ActiveCfg = Release|Win32
