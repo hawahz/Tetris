@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <Windows.h>
+#include "ASCIIDisplayWindow.h"
 
 /*
 * ASCII Renderer
@@ -93,6 +94,8 @@ class ASCIIRenderer : public AbstractRenderer {
 	unsigned int scale = 1;
 	std::string displayText;
 	BiStorage biStorage;
+	DisplayWindow window;
+	DisplayWindow& out = window;
 public:
 	ASCIIRenderer(int width, int height);
 	void renderBox(int x, int y, abr::RenderType type = abr::RenderType::MAIN);
@@ -103,5 +106,6 @@ public:
 	void renderSubPixel(int x, int y, short color) override;
 	void renderCharacter(int x, int y, char c) override;
 	void renderString(int x, int y, std::string message) override;
+	bool running() override;
 };
 

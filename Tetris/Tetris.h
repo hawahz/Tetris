@@ -4,6 +4,8 @@
 #include <conio.h>
 #include <queue>
 #include <Python.h>
+#include <iostream>
+#include <Windows.h>
 #define SCORE_X 30
 
 namespace tetris {
@@ -78,6 +80,16 @@ namespace tetris {
 		void renderUpdate();
 		void eliminateTest();
 
+		std::atomic<char> cmd = 0;
+
+		/*
+	
+		void keyboardCapture();
+		≤∂ªÒº¸≈Ã ‰»Î
+		
+		*/
+		void keyboardCapture();
+
 		/*
 		*
 		* std::vector<void (*)(AbstractRenderer&)> renderEvents
@@ -87,6 +99,7 @@ namespace tetris {
 		std::vector<void (*)(AbstractRenderer&)> renderEvents;
 		bool fall();
 		bool pause = false;
+		bool isPiped;
 		bool gameover = false;
 		bool killed = false;
 		std::queue<int> actions;

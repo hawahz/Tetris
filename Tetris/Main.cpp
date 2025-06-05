@@ -1,4 +1,5 @@
 #include "PyInterface.h"
+#include "ASCIIDisplayWindow.h"
 
 void renderTips(AbstractRenderer& renderer) {
 	int height = 12;
@@ -13,13 +14,18 @@ void renderTips(AbstractRenderer& renderer) {
 	renderer.renderString(renderer.subWidth + 2 + renderer.startX + 3, height++, "P: pause");
 }
 
-int main() {
-	//std::cout << (int) '\s' << std::endl;
-	PyInterface p;
-	p.init();
-	//std::vector<int> info = p.getInfo();
-	p.run();
-	Sleep(1000);
-	p.init();
-	p.run();
+int main(int argc, char* argv[]) {
+    // 检查是否以显示模式启动
+	if (argc > 1 && strcmp(argv[1], "--display") == 0) {
+		runDisplayMode();
+		return 0;
+	}
+	//std::cout << "test text@@" << std::endl;
+	//runDisplayMode();
+	//Sleep(5000);
+	PyInterface pIn;
+	pIn.init();
+	pIn.run();
+
+    return 0;
 }

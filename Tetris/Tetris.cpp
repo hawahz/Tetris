@@ -91,6 +91,8 @@ tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeig
 		map[i] = 0;
 	}
 	currentBox = new Box(this);
+	DWORD mode;
+	isPiped = !GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &mode);
 }
 
 void tetris::Tetris::logicUpdate() {
@@ -109,6 +111,10 @@ void tetris::Tetris::logicUpdate() {
 }
 
 void tetris::Tetris::renderUpdate() {
+	if (!renderer->running()) {
+		this->killed = true;
+		return;
+	}
 	if (this->pause) {
 		/*
 		for (int i = 0; i < 6; i++) {
@@ -193,6 +199,17 @@ void tetris::Tetris::eliminateTest() {
 			i++;
 		}
 	}
+}
+
+void tetris::Tetris::keyboardCapture() {
+	if (isPiped) {
+		std::cin.get(cmd);
+	}
+	else if (_kbhit()) {//如果有按键按下，则_kbhit()函数返回真
+		cmd = _getch();//使用_getch()函数获取按下的键值
+		Sleep(10);
+	}
+	
 }
 
 bool tetris::Tetris::fall() {
@@ -359,43 +376,43 @@ void tetris::Tetris::update(int delta, bool autoLoop) {
 	if (gameTick == loopLen / delta * 10 / 2) {
 		renderUpdate();
 	}
-	if (_kbhit()) {//如果有按键按下，则_kbhit()函数返回真
-		int ch = _getch();//使用_getch()函数获取按下的键值
-		switch (ch) {
-		case 'A':
-		case 'a':
-			move(-1);
-			break;
-		case 'D':
-		case 'd':
-			move(1);
-			break;
-		case 'R':
-		case 'r':
-			this->currentBox->rotate();
-			break;
-		case 'S':
-		case 's':
-			this->logicUpdate();
-			gameTick = 0;
-			break;
-		case ' ':
-			while (fall()) {
-			}
-			break;
-		case 'P':
-		case 'p':
-			pause = true;
-			break;
-		case 'e':
-		case 'E':
-			killed = true;
-			break;
-		default:
-			return;
+	
+	switch (cmd) {
+	case 'A':
+	case 'a':
+		move(-1);
+		break;
+	case 'D':
+	case 'd':
+		move(1);
+		break;
+	case 'R':
+	case 'r':
+		this->currentBox->rotate();
+		break;
+	case 'S':
+	case 's':
+		this->logicUpdate();
+		gameTick = 0;
+		break;
+	case ' ':
+		while (fall()) {
 		}
-		this->renderUpdate();
+		break;
+	case 'P':
+	case 'p':
+		pause = true;
+		break;
+	case 'e':
+	case 'E':
+		killed = true;
+		break;
+	default:;
 	}
+	if (cmd)
+		cmd = 0;
+	this->renderUpdate();
+
 }
 
 std::vector<int> tetris::Tetris::getInfo() {

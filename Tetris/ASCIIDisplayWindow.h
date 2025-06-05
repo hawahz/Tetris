@@ -8,6 +8,7 @@
 
 // 显示窗口控制器类
 class DisplayWindow {
+public:
     PROCESS_INFORMATION pi;
     HANDLE hWritePipe = nullptr;
     HANDLE hReadPipe = nullptr;
@@ -40,9 +41,10 @@ public:
     // 重置文本颜色
     void resetTextColor();
 
+    bool running();
+
     ~DisplayWindow();
 
-private:
     // 通过进程ID查找窗口
     HWND FindWindowByProcessId(DWORD pid);
 };

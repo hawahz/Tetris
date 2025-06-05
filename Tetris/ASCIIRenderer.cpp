@@ -34,12 +34,17 @@ void setConsoleWindowSize(SHORT width, SHORT height) {
 }
 
 ASCIIRenderer::ASCIIRenderer(int width, int height) :AbstractRenderer(width, height), biStorage(width, height) {
-    setConsoleWindowSize(width, height);
     this->wallColorSide = 8;
     this->wallColorBottom = 5;
     this->blockColor = 7;
     this->shadowColor = 9;
     this->wallColorTop = 10;
+    if (!window.start()) {
+        std::cerr << "无法创建显示窗口\n";
+    }
+    /*
+    setConsoleWindowSize(width, height);
+    
     DisableQuickEditMode();
     HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO cInfo{};
@@ -51,6 +56,7 @@ ASCIIRenderer::ASCIIRenderer(int width, int height) :AbstractRenderer(width, hei
     LONG_PTR sty = GetWindowLongPtrA(hWnd, GWL_STYLE); //获取窗口样式
     sty = sty & ~WS_SIZEBOX & ~WS_MAXIMIZEBOX & ~WS_MINIMIZEBOX; //去除可变化大小,最大,最小化按钮,~是取反,&是与,这是位运算相关的知识了
     SetWindowLongPtrA(hWnd, GWL_STYLE, sty); //设置窗体不可更改大小,不可最大化
+    */
     
     this->displayText = std::string(height * width, ' ');
 }
@@ -83,7 +89,8 @@ void ASCIIRenderer::update() {
     for (int i = this->height; i ; i--) {
         o.insert(i * this->width, "\n");
     }
-    std::cout << o << std::endl;
+    out << o << std::endl;
+    out.flush();
     
 }
 
@@ -110,6 +117,11 @@ void ASCIIRenderer::renderString(int x, int y, std::string message) {
     for (int i = 0; i < message.size(); i++) {
         renderPixel(x + i, y, message[i]);
     }
+}
+
+bool ASCIIRenderer::running() {
+    
+    return window.FindWindowByProcessId(window.pi.dwProcessId);
 }
 
 BiStorage::BiStorage(int width, int height) : width(width), height(height), chainLen(width* height / 32 + ((width * height) % 8 ? 1 : 0)) {

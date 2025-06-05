@@ -106,6 +106,10 @@ void DisplayWindow::resetTextColor() {
     }
 }
 
+bool DisplayWindow::running() {
+    return pi.dwProcessId;
+}
+
 DisplayWindow::~DisplayWindow() {
     flush(); // 确保所有内容都已发送
     if (hWritePipe) {
@@ -152,11 +156,64 @@ void runDisplayMode() {
     GetConsoleMode(hStdout, &mode);
     SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
-    // 禁用输入
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    // 设置控制台字体
+    CONSOLE_FONT_INFOEX fontInfo;
+    fontInfo.cbSize = sizeof(fontInfo);
+    if (GetCurrentConsoleFontEx(hStdout, FALSE, &fontInfo)) {
+        // 设置新字体属性
+        fontInfo.FontFamily = FF_DONTCARE;      // 不指定字体系列
+        fontInfo.FontWeight = FW_NORMAL;        // 正常粗细
+        wcscpy_s(fontInfo.FaceName, L"Terminal"); // 使用Consolas字体
 
+        // 设置字体大小 - 调整这里的值可以改变字体大小
+        fontInfo.dwFontSize.X = 16;  // 字符宽度
+        fontInfo.dwFontSize.Y = 16; // 字符高度（主要控制大小）
+
+        SetCurrentConsoleFontEx(hStdout, FALSE, &fontInfo);
+    }
+
+    HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
+    if (hConsoleInput == INVALID_HANDLE_VALUE) {
+        std::cerr << "获取控制台输入句柄失败。错误代码：" << GetLastError() << std::endl;
+    }
+    // 禁用输入
+    DWORD consoleMode;
+    if (!GetConsoleMode(hConsoleInput, &consoleMode)) {
+        std::cerr << "获取控制台模式失败。错误代码：" << GetLastError() << std::endl;
+        HANDLE hConsole = CreateFile(
+            TEXT("CONIN$"),
+            GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_EXISTING,
+            0,
+            nullptr
+        );
+
+        if (hConsole == INVALID_HANDLE_VALUE) {
+            return; // 可能没有控制台，忽略错误
+        }
+
+        DWORD mode;
+        if (GetConsoleMode(hConsole, &mode)) {
+            // 禁用快速编辑和插入模式
+            mode &= ~(ENABLE_QUICK_EDIT_MODE | ENABLE_INSERT_MODE);
+            SetConsoleMode(hConsole, mode);
+        }
+
+        CloseHandle(hConsole);
+    }
+    else {
+        // 移除快速编辑标志 (ENABLE_QUICK_EDIT_MODE) 和插入模式标志 (ENABLE_INSERT_MODE)
+        consoleMode &= ~(ENABLE_QUICK_EDIT_MODE | ENABLE_INSERT_MODE);
+
+        if (!SetConsoleMode(hConsoleInput, consoleMode)) {
+            std::cerr << "设置控制台模式失败。错误代码：" << GetLastError() << std::endl;
+        }
+
+    }
+
+    
     // 隐藏光标
     CONSOLE_CURSOR_INFO cursorInfo;
     GetConsoleCursorInfo(hStdout, &cursorInfo);
@@ -165,11 +222,10 @@ void runDisplayMode() {
 
     // 设置控制台标题
     SetConsoleTitleW(L"流式内容显示器");
-
     // 清屏并设置初始颜色
     std::cout << "\x1B[2J\x1B[H"; // 清屏
     std::cout << "\x1B[38;2;100;200;255m"; // 设置初始颜色
-
+    
     // 读取并显示内容
     char buffer[4096];
     DWORD read;
@@ -179,6 +235,8 @@ void runDisplayMode() {
             std::cout << buffer;
         }
     }
+
+
 }
 
 /*

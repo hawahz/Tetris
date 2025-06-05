@@ -29,6 +29,7 @@ public:
 	virtual void renderSubPixel(int x, int y, short color) = 0;
 	virtual void renderCharacter(int x, int y, char c) = 0;
 	virtual void renderString(int x, int y, std::string message) = 0;
+	virtual bool running() = 0;
 	short wallColorSide = 255, wallColorBottom = 255, blockColor = 255, shadowColor = 255, wallColorTop = 255;
 	unsigned int startX, startY;
 	unsigned int subWidth, subHeight;

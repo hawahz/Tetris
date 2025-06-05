@@ -35,32 +35,20 @@ void PyInterface::init(int seed) {
     }
     average = 0;
     this->game = new tetris::Tetris(renderer);
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_FONT_INFOEX fontInfo;
-    fontInfo.cbSize = sizeof(fontInfo);
-    if (!GetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo)) {
-        std::cerr << "获取字体信息失败。错误代码：" << GetLastError() << std::endl;
-        return;
-    }
-
-    // 设置字体为Consolas，可根据需要更改为其他等宽字体
-    wcscpy_s(fontInfo.FaceName, L"Terminal");
-    // 可选：设置字体大小，确保等宽等高
-    fontInfo.dwFontSize.X = 16;  // 宽度
-    fontInfo.dwFontSize.Y = 16; // 高度
-    if (!SetCurrentConsoleFontEx(hConsole, FALSE, &fontInfo)) {
-        std::cerr << "设置字体失败。错误代码：" << GetLastError() << std::endl;
-    }
+    
     this->game->setSubWindow(3, 3, 10, 20);
 }
 
 void PyInterface::run() {
-    if (!this->game)
+    if (!this->game) {
+        std::cerr << "No Game Handle";
         return;
+    }
     for (int p = 0; ; p++) {
         if (this->game->killed) {
             delete this->game;
             this->game = nullptr;
+            std::cerr << "Game Killed";
             return;
         }
         this->game->update(UPDATE_RATE);
