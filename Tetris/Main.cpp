@@ -1,4 +1,5 @@
 #include "PyInterface.h"
+#include <codecvt>
 #include "ASCIIDisplayWindow.h"
 
 void renderTips(AbstractRenderer& renderer) {
@@ -16,8 +17,9 @@ void renderTips(AbstractRenderer& renderer) {
 
 int main(int argc, char* argv[]) {
     // 检查是否以显示模式启动
-	if (argc > 1 && strcmp(argv[1], "--display") == 0) {
-		runDisplayMode();
+	if (argc > 2 && strcmp(argv[1], "--display") == 0) {
+		std::wstring pipeName = std::wstring_convert<std::codecvt_utf8<wchar_t>>{}.from_bytes(argv[2]);
+		runDisplayMode(pipeName.c_str());
 		return 0;
 	}
 	//std::cout << "test text@@" << std::endl;

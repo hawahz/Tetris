@@ -50,5 +50,5 @@ public:
 };
 
 // 显示模式入口点
-void runDisplayMode();
+void runDisplayMode(const wchar_t* pipeName);
 

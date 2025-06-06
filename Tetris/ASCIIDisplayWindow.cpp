@@ -7,14 +7,22 @@ bool DisplayWindow::start() {
     SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
 
     // 创建管道用于通信
-    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
+    std::wstring pipeName = L"\\\\.\\pipe\\DisplayPipe" + std::to_wstring(rand());
+
+    // 创建命名管道
+    HANDLE hPipe = CreateNamedPipeW(
+        pipeName.c_str(),
+        PIPE_ACCESS_OUTBOUND,
+        PIPE_TYPE_BYTE | PIPE_WAIT,
+        1, 4096, 4096, 0, NULL
+    );
+
+    if (hPipe == INVALID_HANDLE_VALUE) {
+        std::cerr << "创建命名管道失败\n";
         return false;
     }
 
-    // 设置管道句柄不可继承
-    if (!SetHandleInformation(hWritePipe, HANDLE_FLAG_INHERIT, 0)) {
-        return false;
-    }
+    hWritePipe = hPipe;
 
     // 创建新进程
     STARTUPINFOW si = { sizeof(si) };
@@ -29,7 +37,7 @@ bool DisplayWindow::start() {
 
     // 构建命令行参数
     wchar_t commandLine[MAX_PATH + 20];
-    swprintf_s(commandLine, MAX_PATH + 20, L"\"%s\" --display", exePath);
+    swprintf_s(commandLine, MAX_PATH + 20, L"\"%s\" --display \"%s\"", exePath, pipeName.c_str());
 
     // 创建新进程（显示窗口）
     if (!CreateProcessW(
@@ -37,7 +45,7 @@ bool DisplayWindow::start() {
         commandLine,
         NULL,
         NULL,
-        TRUE,                   // 继承句柄
+        FALSE,                   // 继承句柄
         CREATE_NEW_CONSOLE,     // 创建新的控制台窗口
         NULL,
         NULL,
@@ -149,7 +157,18 @@ HWND DisplayWindow::FindWindowByProcessId(DWORD pid) {
     return data.hwnd;
 }
 
-void runDisplayMode() {
+void runDisplayMode(const wchar_t* pipeName) {
+    HANDLE hPipe = CreateFileW(
+        pipeName,
+        GENERIC_READ,
+        0, NULL, OPEN_EXISTING, 0, NULL
+    );
+
+    if (hPipe == INVALID_HANDLE_VALUE) {
+        std::cerr << "无法连接命名管道\n";
+        return;
+    }
+
     // 启用ANSI转义序列支持
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode;
@@ -229,12 +248,14 @@ void runDisplayMode() {
     // 读取并显示内容
     char buffer[4096];
     DWORD read;
-    while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sizeof(buffer) - 1, &read, NULL)) {
+    while (ReadFile(hPipe, buffer, sizeof(buffer) - 1, &read, NULL)) {
         if (read > 0) {
             buffer[read] = '\0';
             std::cout << buffer;
         }
     }
+
+    CloseHandle(hPipe);
 
 
 }
