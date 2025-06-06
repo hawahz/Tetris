@@ -93,6 +93,7 @@ tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeig
 	currentBox = new Box(this);
 	DWORD mode;
 	isPiped = !GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &mode);
+	std::cout << "[log] Game is " << (isPiped ? "piped" : "not piped") << std::endl;
 }
 
 void tetris::Tetris::logicUpdate() {
@@ -116,21 +117,11 @@ void tetris::Tetris::renderUpdate() {
 		return;
 	}
 	if (this->pause) {
-		/*
-		for (int i = 0; i < 6; i++) {
-			this->renderer->renderCharacter(renderer->startX + renderer->subWidth / 2 - 3 + i, this->subHeight / 3, "paused"[i]);
-		}
-		*/
 		this->renderer->renderString(renderer->startX + renderer->subWidth / 2 - 3, this->subHeight / 3, "paused");
 		renderer->update();
 		return;
 	}
 	if (this->gameover) {
-		/*
-		for (int i = 0; i < 8; i++) {
-			this->renderer->renderCharacter(renderer->startX + renderer->subWidth / 2 - 4 + i, this->subHeight / 3, "gameover"[i]);
-		}
-		*/
 		this->renderer->renderString(renderer->startX + renderer->subWidth / 2 - 4, this->subHeight / 3, "gameover");
 		renderer->update();
 		return;
@@ -158,22 +149,6 @@ void tetris::Tetris::renderUpdate() {
 	}
 	if (this->score < 100000) {
 		int sc = this->score;
-		/*
-		int pos = 0;
-		if (sc == 0) {
-			this->renderer->renderCharacter(pos + SCORE_X, 10, '0');
-			pos--;
-		}
-		while (sc > 0) {
-			this->renderer->renderCharacter(pos + SCORE_X, 10, ('0' + (sc % 10)));
-			sc /= 10;
-			pos--;
-		}
-		
-		for (int i = 0; i < 6; i++) {
-			this->renderer->renderCharacter(pos + SCORE_X - i, 10, "score:"[5 - i]);
-		}
-		*/
 		int sX = this->subWidth + 2 + this->renderer->startX + 3;
 		this->renderer->renderString(sX, 10, "score:");
 		this->renderer->renderString(sX + 6, 10, std::to_string(sc));
@@ -181,8 +156,6 @@ void tetris::Tetris::renderUpdate() {
 	}
 	
 	this->currentBox->render(renderer);
-
-	
 
 	renderer->update();
 }
@@ -203,11 +176,27 @@ void tetris::Tetris::eliminateTest() {
 
 void tetris::Tetris::keyboardCapture() {
 	if (isPiped) {
-		std::cin.get(cmd);
+		HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+		DWORD mode;
+		GetConsoleMode(hStdin, &mode);
+		SetConsoleMode(hStdin, mode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT));
+
+		while (true) {
+			DWORD bytesAvailable;
+			if (PeekNamedPipe(hStdin, NULL, 0, NULL, &bytesAvailable, NULL) && bytesAvailable > 0) {
+				char c;
+				DWORD bytesRead;
+				(void)ReadFile(hStdin, &c, 1, &bytesRead, NULL);
+				if (bytesRead > 0) {
+					cmd = c;
+				}
+			}
+			Sleep(5);
+		}
 	}
-	else if (_kbhit()) {//如果有按键按下，则_kbhit()函数返回真
-		cmd = _getch();//使用_getch()函数获取按下的键值
-		Sleep(10);
+	else if (_kbhit()) {
+		cmd = _getch();
+		Sleep(5);
 	}
 	
 }
@@ -377,40 +366,7 @@ void tetris::Tetris::update(int delta, bool autoLoop) {
 		renderUpdate();
 	}
 	
-	switch (cmd) {
-	case 'A':
-	case 'a':
-		move(-1);
-		break;
-	case 'D':
-	case 'd':
-		move(1);
-		break;
-	case 'R':
-	case 'r':
-		this->currentBox->rotate();
-		break;
-	case 'S':
-	case 's':
-		this->logicUpdate();
-		gameTick = 0;
-		break;
-	case ' ':
-		while (fall()) {
-		}
-		break;
-	case 'P':
-	case 'p':
-		pause = true;
-		break;
-	case 'e':
-	case 'E':
-		killed = true;
-		break;
-	default:;
-	}
-	if (cmd)
-		cmd = 0;
+	
 	this->renderUpdate();
 
 }

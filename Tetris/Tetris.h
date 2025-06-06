@@ -6,6 +6,7 @@
 #include <Python.h>
 #include <iostream>
 #include <Windows.h>
+#include <thread>
 #define SCORE_X 30
 
 namespace tetris {

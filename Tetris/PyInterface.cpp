@@ -44,16 +44,83 @@ void PyInterface::run() {
         std::cerr << "No Game Handle";
         return;
     }
-    for (int p = 0; ; p++) {
-        if (this->game->killed) {
-            delete this->game;
-            this->game = nullptr;
-            std::cerr << "Game Killed";
-            return;
+    tetris::Tetris* g = game;
+    std::cout << "[log] Waiting for game start..." << std::endl;
+    Sleep(1000);
+    std::cout << "[log] Game start successful" << std::endl;
+
+    std::cout << "[log] Attaching logic thread..." << std::endl;
+    std::thread logicThread([g]() {
+        short time = 0;
+        while (true) {
+            if (g->killed)
+                return;
+            time++;
+            if (!(time %= 20)) {
+                g->logicUpdate();
+            }
+            Sleep(5);
+            if (!g->cmd)
+                continue;
+            switch (g->cmd) {
+            case 'A':
+            case 'a':
+                g->move(-1);
+                break;
+            case 'D':
+            case 'd':
+                g->move(1);
+                break;
+            case 'R':
+            case 'r':
+                g->currentBox->rotate();
+                break;
+            case 'S':
+            case 's':
+                g->logicUpdate();
+                time = 0;
+                break;
+            case ' ':
+                while (g->fall()) {
+                }
+                break;
+            case 'P':
+            case 'p':
+                g->pause = true;
+                break;
+            case 'e':
+            case 'E':
+                g->killed = true;
+                break;
+            default:;
+            }
+            g->cmd = 0;
         }
-        this->game->update(UPDATE_RATE);
-        Sleep(UPDATE_RATE);
-    }
+    });
+    logicThread.detach();
+
+    std::cout << "[log] Attaching render thread..." << std::endl;
+    std::thread renderThread([g]() {
+        while (true) {
+            if (g->killed)
+                return;
+            g->renderUpdate();
+            Sleep(5);
+        }
+        });
+    renderThread.detach();
+
+    std::cout << "[log] Attaching keyboard handler thread..." << std::endl;
+    std::thread keyboardThread([g]() {
+        while (true) {
+            if (g->killed)
+                return;
+            g->keyboardCapture();
+        }
+        });
+
+    std::cout << "[log] Game Ready!" << std::endl;
+    keyboardThread.join();
 }
 
 void PyInterface::step() {
@@ -106,38 +173,6 @@ void PyInterface::autoPlay() {
             this->game->reset();
             times++;
         }
-        /*
-        int x = 0, score = 0, minHx = 0, minH = this->game->subHeight;
-        tetris::Rotate rm = this->game->currentBox->state, rHm = this->game->currentBox->state;
-        this->game->currentBox->posX = 0;
-        for (int j = 0; j < 4; j++) {
-            this->game->currentBox->state = tetris::Rotate(j);
-            for (int i = 0; i < this->game->subWidth; i++, this->game->currentBox->posX++) {
-                if (!this->game->currentBox->isValidPos())
-                    continue;
-                int scEx = this->game->scoreExtruder(), hEx = this->game->heightExtruder();
-                if (score < scEx) {
-                    x = this->game->currentBox->posX;
-                    score = scEx;
-                    rm = tetris::Rotate(this->game->currentBox->state);
-                }
-
-                if (minH > hEx) {
-                    minHx = this->game->currentBox->posX;
-                    minH = hEx;
-                    rHm = tetris::Rotate(this->game->currentBox->state);
-                }
-            }
-        }
-        if (score) {
-            this->game->currentBox->posX = x;
-            this->game->currentBox->state = rm;
-        }
-        else {
-            this->game->currentBox->posX = minHx;
-            this->game->currentBox->state = rHm;
-        }
-        */
         int x = 0, score = -1000000;
         tetris::Rotate rm = this->game->currentBox->state, rHm = this->game->currentBox->state;
         this->game->currentBox->posX = 0;

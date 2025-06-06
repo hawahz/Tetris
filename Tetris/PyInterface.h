@@ -9,6 +9,7 @@
 #define UPDATE_RATE 5
 
 class PyInterface {
+public:
 	float average = 0;
 	tetris::Tetris* game = nullptr;
 	AbstractRenderer* renderer = nullptr;
