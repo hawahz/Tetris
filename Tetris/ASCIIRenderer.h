@@ -106,6 +106,7 @@ public:
 	void renderSubPixel(int x, int y, short color) override;
 	void renderCharacter(int x, int y, char c) override;
 	void renderString(int x, int y, std::string message) override;
+	HANDLE getKeyboardHandle() override;
 	bool running() override;
 };
 

@@ -13,6 +13,7 @@ public:
     HANDLE hWritePipe = nullptr;
     HANDLE hReadPipe = nullptr;
     std::ostringstream streamBuffer;
+    HANDLE hInputRead = nullptr;
 
 public:
     DisplayWindow();
@@ -50,5 +51,5 @@ public:
 };
 
 // 显示模式入口点
-void runDisplayMode(const wchar_t* pipeName);
+void runDisplayMode(const wchar_t* pipeName, const wchar_t*);
 

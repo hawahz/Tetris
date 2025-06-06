@@ -1,13 +1,4 @@
 #include "Tetris.h"
-#define KEY_d 100
-#define KEY_D 68
-#define KEY_a 97
-#define KEY_A 65
-#define KEY_s 115
-#define KEY_S 83
-#define KEY_r 114
-#define KEY_R 113
-#define KEY_SPACE 32
 
 int tetris::Tetris::width = 0;
 int tetris::Tetris::height = 0;
@@ -97,6 +88,8 @@ tetris::Tetris::Tetris(AbstractRenderer* renderer) : renderer(renderer), subHeig
 }
 
 void tetris::Tetris::logicUpdate() {
+	if (this->pause)
+		return;
 	if (!fall()) {
 		for (int x = 0; x < 4; x++) {
 			for (int y = 0; y < 4; y++) {
@@ -194,9 +187,15 @@ void tetris::Tetris::keyboardCapture() {
 			Sleep(5);
 		}
 	}
-	else if (_kbhit()) {
-		cmd = _getch();
-		Sleep(5);
+	else{
+		int keyCode;
+		DWORD read;
+		while (ReadFile(renderer->getKeyboardHandle(), &keyCode, sizeof(keyCode), &read, NULL)) {
+			if (read == sizeof(keyCode)) {
+				//std::cout << "[MAIN] Received key code:" << keyCode << std::endl;
+				cmd = keyCode;
+			}
+		}
 	}
 	
 }
@@ -337,6 +336,7 @@ void tetris::Tetris::setPos(int x, int rotate) {
 	this->currentBox->state = prevState;
 }
 
+/*
 void tetris::Tetris::update(int delta, bool autoLoop) {
 	if (pause) {
 		if (_kbhit() && _getch() == 'p')
@@ -370,7 +370,7 @@ void tetris::Tetris::update(int delta, bool autoLoop) {
 	this->renderUpdate();
 
 }
-
+*/
 std::vector<int> tetris::Tetris::getInfo() {
 	int height = 0, holes = 0;
 	int* heightMap = new int[this->subWidth] {-1};

@@ -1,4 +1,5 @@
 #include "ASCIIDisplayWindow.h"
+#include <thread>
 
 DisplayWindow::DisplayWindow() : pi{} {
 }
@@ -6,8 +7,10 @@ DisplayWindow::DisplayWindow() : pi{} {
 bool DisplayWindow::start() {
     SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
 
+    int code = rand();
+    
     // 创建管道用于通信
-    std::wstring pipeName = L"\\\\.\\pipe\\DisplayPipe" + std::to_wstring(rand());
+    std::wstring pipeName = L"\\\\.\\pipe\\DisplayPipe" + std::to_wstring(code);
 
     // 创建命名管道
     HANDLE hPipe = CreateNamedPipeW(
@@ -24,6 +27,20 @@ bool DisplayWindow::start() {
 
     hWritePipe = hPipe;
 
+    // 创建子->主管道
+    std::wstring inputPipeName = L"\\\\.\\pipe\\InputPipe" + std::to_wstring(code);
+
+    hInputRead = CreateNamedPipeW(
+        inputPipeName.c_str(),
+        PIPE_ACCESS_INBOUND,
+        PIPE_TYPE_BYTE | PIPE_WAIT,
+        1, 4096, 4096, 0, NULL
+    );
+    if (hInputRead == INVALID_HANDLE_VALUE) {
+        std::cerr << "创建子→主输入命名管道失败" << std::endl;
+        return false;
+    }
+
     // 创建新进程
     STARTUPINFOW si = { sizeof(si) };
     si.dwFlags = STARTF_USESTDHANDLES;
@@ -37,7 +54,7 @@ bool DisplayWindow::start() {
 
     // 构建命令行参数
     wchar_t commandLine[MAX_PATH + 20];
-    swprintf_s(commandLine, MAX_PATH + 20, L"\"%s\" --display \"%s\"", exePath, pipeName.c_str());
+    swprintf_s(commandLine, MAX_PATH + 20, L"\"%s\" --display \"%s\" \"%s\"", exePath, pipeName.c_str(), inputPipeName.c_str());
 
     // 创建新进程（显示窗口）
     if (!CreateProcessW(
@@ -62,7 +79,7 @@ bool DisplayWindow::start() {
     Sleep(100); // 等待窗口创建
     HWND hwnd = FindWindowByProcessId(pi.dwProcessId);
     if (hwnd) {
-        SetWindowTextW(hwnd, L"流式内容显示器");
+        SetWindowTextW(hwnd, L"Tetris Game");
     }
 
     return true;
@@ -157,7 +174,8 @@ HWND DisplayWindow::FindWindowByProcessId(DWORD pid) {
     return data.hwnd;
 }
 
-void runDisplayMode(const wchar_t* pipeName) {
+void runDisplayMode(const wchar_t* pipeName, const wchar_t* inputPipeName) {
+    // 1. 连接命名管道（读取显示内容）
     HANDLE hPipe = CreateFileW(
         pipeName,
         GENERIC_READ,
@@ -169,83 +187,107 @@ void runDisplayMode(const wchar_t* pipeName) {
         return;
     }
 
-    // 启用ANSI转义序列支持
+    HANDLE hInputWrite = CreateFileW(
+        inputPipeName,         // 来自 argv[3]
+        GENERIC_WRITE,
+        0, NULL,
+        OPEN_EXISTING,
+        0, NULL
+    );
+    if (hInputWrite == INVALID_HANDLE_VALUE) {
+        std::cerr << "子进程无法连接主进程输入管道，错误: " << GetLastError() << std::endl;
+        return;
+    }
+
+    // 2. 设置控制台输出样式
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode;
-    GetConsoleMode(hStdout, &mode);
-    SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    if (GetConsoleMode(hStdout, &mode)) {
+        SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
 
-    // 设置控制台字体
+    // 设置字体
     CONSOLE_FONT_INFOEX fontInfo;
     fontInfo.cbSize = sizeof(fontInfo);
     if (GetCurrentConsoleFontEx(hStdout, FALSE, &fontInfo)) {
-        // 设置新字体属性
-        fontInfo.FontFamily = FF_DONTCARE;      // 不指定字体系列
-        fontInfo.FontWeight = FW_NORMAL;        // 正常粗细
-        wcscpy_s(fontInfo.FaceName, L"Terminal"); // 使用Consolas字体
-
-        // 设置字体大小 - 调整这里的值可以改变字体大小
-        fontInfo.dwFontSize.X = 16;  // 字符宽度
-        fontInfo.dwFontSize.Y = 16; // 字符高度（主要控制大小）
-
+        fontInfo.FontFamily = FF_DONTCARE;
+        fontInfo.FontWeight = FW_NORMAL;
+        wcscpy_s(fontInfo.FaceName, L"Terminal");
+        fontInfo.dwFontSize.X = 16;
+        fontInfo.dwFontSize.Y = 16;
         SetCurrentConsoleFontEx(hStdout, FALSE, &fontInfo);
     }
 
-    HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
-    if (hConsoleInput == INVALID_HANDLE_VALUE) {
-        std::cerr << "获取控制台输入句柄失败。错误代码：" << GetLastError() << std::endl;
-    }
-    // 禁用输入
-    DWORD consoleMode;
-    if (!GetConsoleMode(hConsoleInput, &consoleMode)) {
-        std::cerr << "获取控制台模式失败。错误代码：" << GetLastError() << std::endl;
-        HANDLE hConsole = CreateFile(
-            TEXT("CONIN$"),
-            GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            nullptr,
-            OPEN_EXISTING,
-            0,
-            nullptr
-        );
+    // 3. 禁用鼠标选择等干扰行为
+    HANDLE hConsoleInput = CreateFileW(
+        L"CONIN$", GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        nullptr, OPEN_EXISTING, 0, nullptr
+    );
 
-        if (hConsole == INVALID_HANDLE_VALUE) {
-            return; // 可能没有控制台，忽略错误
+    if (hConsoleInput != INVALID_HANDLE_VALUE) {
+        DWORD inputMode;
+        if (GetConsoleMode(hConsoleInput, &inputMode)) {
+            inputMode &= ~(ENABLE_QUICK_EDIT_MODE | ENABLE_INSERT_MODE);
+            SetConsoleMode(hConsoleInput, inputMode);
         }
-
-        DWORD mode;
-        if (GetConsoleMode(hConsole, &mode)) {
-            // 禁用快速编辑和插入模式
-            mode &= ~(ENABLE_QUICK_EDIT_MODE | ENABLE_INSERT_MODE);
-            SetConsoleMode(hConsole, mode);
-        }
-
-        CloseHandle(hConsole);
-    }
-    else {
-        // 移除快速编辑标志 (ENABLE_QUICK_EDIT_MODE) 和插入模式标志 (ENABLE_INSERT_MODE)
-        consoleMode &= ~(ENABLE_QUICK_EDIT_MODE | ENABLE_INSERT_MODE);
-
-        if (!SetConsoleMode(hConsoleInput, consoleMode)) {
-            std::cerr << "设置控制台模式失败。错误代码：" << GetLastError() << std::endl;
-        }
-
     }
 
-    
-    // 隐藏光标
+    // 4. 隐藏光标
     CONSOLE_CURSOR_INFO cursorInfo;
     GetConsoleCursorInfo(hStdout, &cursorInfo);
     cursorInfo.bVisible = FALSE;
     SetConsoleCursorInfo(hStdout, &cursorInfo);
 
-    // 设置控制台标题
-    SetConsoleTitleW(L"流式内容显示器");
-    // 清屏并设置初始颜色
-    std::cout << "\x1B[2J\x1B[H"; // 清屏
-    std::cout << "\x1B[38;2;100;200;255m"; // 设置初始颜色
-    
-    // 读取并显示内容
+    // 5. 设置标题、清屏、初始颜色
+    SetConsoleTitleW(L"Tetris Game");
+    std::cout << "\x1B[2J\x1B[H";                // 清屏
+    std::cout << "\x1B[38;2;100;200;255m";       // 初始颜色
+
+    // 6. 启动子线程监听键盘输入（通过真实控制台）
+    std::thread keyThread([hInputWrite]() {
+        HANDLE hKeyboard = CreateFileW(
+            L"CONIN$", GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr, OPEN_EXISTING, 0, nullptr
+        );
+
+        if (hInputWrite == INVALID_HANDLE_VALUE) {
+            std::cerr << "获取写入Handle失败" << std::endl;
+            return;
+        }
+
+        if (hKeyboard == INVALID_HANDLE_VALUE) {
+            std::cerr << "子进程：打开 CONIN$ 失败，错误码: " << GetLastError() << std::endl;
+            return;
+        }
+
+        DWORD mode;
+        GetConsoleMode(hKeyboard, &mode);
+        SetConsoleMode(hKeyboard, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+
+        INPUT_RECORD record;
+        DWORD read;
+        while (true) {
+            
+            if (ReadConsoleInput(hKeyboard, &record, 1, &read)) {
+                if (record.EventType == KEY_EVENT && record.Event.KeyEvent.bKeyDown) {
+                    int keyCode = record.Event.KeyEvent.wVirtualKeyCode;
+
+                    // 写入主进程
+                    DWORD written;
+                    WriteFile(hInputWrite, &keyCode, sizeof(keyCode), &written, NULL);
+                    if (keyCode == VK_ESCAPE) break;
+                }
+            }
+            
+        }
+
+        CloseHandle(hKeyboard);
+        CloseHandle(hInputWrite);
+        });
+    keyThread.detach();
+    // 7. 主显示循环
     char buffer[4096];
     DWORD read;
     while (ReadFile(hPipe, buffer, sizeof(buffer) - 1, &read, NULL)) {
@@ -255,100 +297,10 @@ void runDisplayMode(const wchar_t* pipeName) {
         }
     }
 
+    // 8. 清理
     CloseHandle(hPipe);
+    if (hConsoleInput != INVALID_HANDLE_VALUE)
+        CloseHandle(hConsoleInput);
 
-
+    
 }
-
-/*
-int main(int argc, char* argv[]) {
-    // 检查是否以显示模式启动
-    if (argc > 1 && strcmp(argv[1], "--display") == 0) {
-        runDisplayMode();
-        return 0;
-    }
-
-    // 主终端正常使用
-    std::cout << "主终端窗口: 请输入您的名字: ";
-    std::string name;
-    std::cin >> name;
-    std::cout << "你好, " << name << "! 这是主终端窗口。\n";
-
-    // 创建并启动显示窗口
-    DisplayWindow display;
-    if (!display.start()) {
-        std::cerr << "无法创建显示窗口\n";
-        return 1;
-    }
-
-    std::cout << "显示窗口已启动。将向其发送内容...\n";
-
-    // 使用流式操作向显示窗口发送内容
-    display << "==================================" << std::endl;
-    display << "     欢迎使用流式内容显示器" << std::endl;
-    display << "==================================" << std::endl;
-    display << std::endl;
-
-    // 使用颜色和格式化
-    display.setTextColor(255, 150, 50); // 橙色
-    display << "这是一个支持流式操作和格式化的显示窗口" << std::endl;
-    display << "用户无法在此窗口输入任何内容" << std::endl;
-    display << std::endl;
-    display.resetTextColor();
-
-    // 发送表格
-    display << std::left << std::setw(15) << "项目"
-        << std::setw(10) << "数量"
-        << std::setw(15) << "价格" << std::endl;
-    display << "----------------------------------" << std::endl;
-
-    display.setTextColor(150, 255, 150); // 绿色
-    display << std::setw(15) << "苹果"
-        << std::setw(10) << 5
-        << std::setw(15) << "$2.99" << std::endl;
-
-    display.setTextColor(255, 200, 100); // 黄色
-    display << std::setw(15) << "香蕉"
-        << std::setw(10) << 3
-        << std::setw(15) << "$1.49" << std::endl;
-
-    display.setTextColor(200, 150, 255); // 紫色
-    display << std::setw(15) << "橙子"
-        << std::setw(10) << 8
-        << std::setw(15) << "$3.25" << std::endl;
-    display.resetTextColor();
-    display << "----------------------------------" << std::endl;
-
-    // 发送动态内容
-    display << std::endl << "进度更新:" << std::endl;
-    for (int i = 0; i <= 10; i++) {
-        display << "[";
-        display.setTextColor(50, 200, 50); // 进度条绿色
-        for (int j = 0; j < i; j++) display << "=";
-        for (int j = i; j < 10; j++) display << " ";
-        display.resetTextColor();
-        display << "] " << (i * 10) << "%" << std::endl;
-
-        // 模拟进度更新
-        if (i < 10) {
-            display << "\x1B[A"; // 光标上移一行
-        }
-        Sleep(300);
-    }
-
-    // 发送结束消息
-    display.flush(); // 确保所有内容都已发送
-    display << std::endl;
-    display.setTextColor(100, 200, 255); // 蓝色
-    display << "==================================" << std::endl;
-    display << "      内容显示完成" << std::endl;
-    display << "==================================" << std::endl;
-    display.resetTextColor();
-
-    std::cout << "\n内容已发送到显示窗口。按回车键退出主程序...";
-    std::cin.ignore();
-    std::cin.get();
-
-    return 0;
-}
-*/

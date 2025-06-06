@@ -1,30 +1,6 @@
-#include "PyInterface.h"
+#include "GameHandler.h"
 
-PYBIND11_MODULE(Tetris, m) {
-    m.doc() = "The general function";
-    pybind11::class_<PyInterface>(m, "TetrisGame")
-        .def(pybind11::init<>())
-        .def("init", &PyInterface::init, pybind11::arg("seed"))
-        .def("run", &PyInterface::run)
-        .def("get_map", &PyInterface::getMap)
-        .def("auto_play", &PyInterface::autoPlay)
-        .def("exit", &PyInterface::exit)
-        .def("is_solid", &PyInterface::isSolid)
-        .def("get_info", &PyInterface::getInfo)
-        .def("step", &PyInterface::step)
-        .def("set_pos", &PyInterface::setPos)
-        .def("gameover", &PyInterface::gameover)
-        .def("restart", &PyInterface::restart)
-        .def("rotate", &PyInterface::rotate)
-        .def("move", &PyInterface::move)
-
-        .def("__repr__", [] (const PyInterface& p) {
-            return "<tetris.TetrisGame>";
-        });
-    //m.def("set_sub_window", &setSubWindow);
-}
-
-void PyInterface::init(int seed) {
+void GameHandler::init(int seed) {
     std::srand(seed);
     if (this->game) {
         delete this->game;
@@ -39,22 +15,24 @@ void PyInterface::init(int seed) {
     this->game->setSubWindow(3, 3, 10, 20);
 }
 
-void PyInterface::run() {
+void GameHandler::run() {
     if (!this->game) {
-        std::cerr << "No Game Handle";
+        std::cerr << "[MAIN] No Game Handle";
         return;
     }
     tetris::Tetris* g = game;
-    std::cout << "[log] Waiting for game start..." << std::endl;
+    std::cout << "[MAIN] Waiting for game start..." << std::endl;
     Sleep(1000);
-    std::cout << "[log] Game start successful" << std::endl;
+    std::cout << "[MAIN] Game start successful" << std::endl;
 
-    std::cout << "[log] Attaching logic thread..." << std::endl;
+    std::cout << "[MAIN] Attaching logic thread..." << std::endl;
     std::thread logicThread([g]() {
         short time = 0;
         while (true) {
-            if (g->killed)
+            if (g->killed) {
                 return;
+            }
+                
             time++;
             if (!(time %= 20)) {
                 g->logicUpdate();
@@ -62,44 +40,12 @@ void PyInterface::run() {
             Sleep(5);
             if (!g->cmd)
                 continue;
-            switch (g->cmd) {
-            case 'A':
-            case 'a':
-                g->move(-1);
-                break;
-            case 'D':
-            case 'd':
-                g->move(1);
-                break;
-            case 'R':
-            case 'r':
-                g->currentBox->rotate();
-                break;
-            case 'S':
-            case 's':
-                g->logicUpdate();
-                time = 0;
-                break;
-            case ' ':
-                while (g->fall()) {
-                }
-                break;
-            case 'P':
-            case 'p':
-                g->pause = true;
-                break;
-            case 'e':
-            case 'E':
-                g->killed = true;
-                break;
-            default:;
-            }
-            g->cmd = 0;
+            inputHandler(g, time);
         }
     });
     logicThread.detach();
 
-    std::cout << "[log] Attaching render thread..." << std::endl;
+    std::cout << "[MAIN] Attaching render thread..." << std::endl;
     std::thread renderThread([g]() {
         while (true) {
             if (g->killed)
@@ -110,7 +56,7 @@ void PyInterface::run() {
         });
     renderThread.detach();
 
-    std::cout << "[log] Attaching keyboard handler thread..." << std::endl;
+    std::cout << "[MAIN] Attaching keyboard handler thread..." << std::endl;
     std::thread keyboardThread([g]() {
         while (true) {
             if (g->killed)
@@ -119,22 +65,87 @@ void PyInterface::run() {
         }
         });
 
-    std::cout << "[log] Game Ready!" << std::endl;
+    std::cout << "[MAIN] Game Ready!" << std::endl;
     keyboardThread.join();
 }
 
-void PyInterface::step() {
-    if (!this->game)
-        return;
-    if (this->game->killed) {
-        delete this->game;
-        this->game = nullptr;
-        return;
+bool inputHandler(tetris::Tetris* g, short& time) {
+    bool flag = true;
+    switch (g->cmd) {
+    case 'A':
+    case 'a':
+        g->move(-1);
+        break;
+    case 'D':
+    case 'd':
+        g->move(1);
+        break;
+    case 'R':
+    case 'r':
+        g->currentBox->rotate();
+        break;
+    case 'S':
+    case 's':
+        g->logicUpdate();
+        time = 0;
+        break;
+    case ' ':
+        while (g->fall()) {
+        }
+        break;
+    case 'P':
+    case 'p':
+        g->pause = !g->pause;
+        break;
+    case 'e':
+    case 'E':
+        g->killed = true;
+        break;
+    case VK_ESCAPE:
+        g->killed = true;
+        break;
+    default:
+        flag = false;
+        auto ptr = callableFunctions.find((char)g->cmd);
+        if (ptr != callableFunctions.end()) {
+            callableFunctions.at(g->cmd)(g);
+        }
     }
-    this->game->update(50);
+    if (g->cmd != 'p' && g->cmd != 'P') {
+        g->pause = false;
+    }
+
+    g->cmd = 0;
+    return flag;
 }
 
-std::vector<int> PyInterface::getMap() {
+void GameHandler::step() {
+    if (!this->game)
+        return;
+    tetris::Tetris* g = game;
+    Sleep(1000);
+    std::thread keyboardThread([g]() {
+        while (true) {
+            if (g->killed)
+                return;
+            g->keyboardCapture();
+        }
+        });
+    keyboardThread.detach();
+    this->game->renderUpdate();
+    short time = 0;
+    while (true) {
+        if (this->game->cmd == 0)
+            continue;
+        if (!inputHandler(this->game, time))
+            continue;
+        ;
+        this->game->logicUpdate();
+        this->game->renderUpdate();
+    }
+}
+
+std::vector<int> GameHandler::getMap() {
     if (!this->game)
         return std::vector<int>();
     std::vector<int> ret;
@@ -145,15 +156,15 @@ std::vector<int> PyInterface::getMap() {
     return ret;
 }
 
-void PyInterface::rotate() {
+void GameHandler::rotate() {
     this->game->currentBox->rotate();
 }
 
-void PyInterface::move(int dir) {
+void GameHandler::move(int dir) {
     this->setPos(this->game->currentBox->posX + dir, this->game->currentBox->state);
 }
 
-void PyInterface::autoPlay() {
+void GameHandler::autoPlay() {
     if (!this->game)
         return;
     this->game->renderEvents.push_back([](AbstractRenderer& r) -> void {
@@ -204,42 +215,39 @@ void PyInterface::autoPlay() {
 
         while (this->game->fall()) {
         }
-
-        this->game->update(50);
-        this->game->update(50);
         //Sleep(50);
     }
 }
 
-bool PyInterface::isSolid(int x, int y) {
+bool GameHandler::isSolid(int x, int y) {
     if (!this->game)
         return false;
     return this->game->mapValid(x, y);
 }
 
-bool PyInterface::gameover() {
+bool GameHandler::gameover() {
     return this->game->gameover;
 }
 
-void PyInterface::exit() {
+void GameHandler::exit() {
     delete this->game;
     this->game = nullptr;
 }
 
-void PyInterface::restart() {
+void GameHandler::restart() {
     this->game->reset();
 }
 
-void PyInterface::setPos(int x, int r) {
+void GameHandler::setPos(int x, int r) {
     this->game->setPos(x, r);
 }
 
-void PyInterface::renderAvgScore(AbstractRenderer& r) {
+void GameHandler::renderAvgScore(AbstractRenderer& r) {
     r.renderString(r.subWidth + 2 + r.startX + 3, 11, "avg:");
     r.renderString(r.subWidth + 2 + r.startX + 3 + 4, 11, std::to_string(average));
 }
 
-std::vector<int> PyInterface::getInfo() {
+std::vector<int> GameHandler::getInfo() {
     if (this->game) {
         return std::vector<int>(this->game->getInfo());
     }

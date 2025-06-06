@@ -3,7 +3,6 @@
 #include <random>
 #include <conio.h>
 #include <queue>
-#include <Python.h>
 #include <iostream>
 #include <Windows.h>
 #include <thread>
@@ -168,7 +167,7 @@ namespace tetris {
 		* 对游戏状态进行更新, delta值决定更新速度
 		*
 		*/
-		void update(int delta, bool autoLoop = true);
+		//void update(int delta, bool autoLoop = true);
 
 		/*
 		*

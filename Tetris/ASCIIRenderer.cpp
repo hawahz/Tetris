@@ -119,6 +119,10 @@ void ASCIIRenderer::renderString(int x, int y, std::string message) {
     }
 }
 
+HANDLE ASCIIRenderer::getKeyboardHandle() {
+    return window.hInputRead;
+}
+
 bool ASCIIRenderer::running() {
     
     return window.FindWindowByProcessId(window.pi.dwProcessId);

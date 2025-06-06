@@ -36,7 +36,7 @@
     <ClCompile Include="ASCIIRenderer.cpp">
       <Filter>源文件\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="PyInterface.cpp">
+    <ClCompile Include="GameHandler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ASCIIDisplayWindow.cpp">
@@ -53,7 +53,7 @@
     <ClInclude Include="Tetris.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="PyInterface.h">
+    <ClInclude Include="GameHandler.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ASCIIDisplayWindow.h">
