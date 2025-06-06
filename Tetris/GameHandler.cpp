@@ -99,7 +99,8 @@ bool inputHandler(tetris::Tetris* g, short& time) {
         break;
     case 'e':
     case 'E':
-        g->killed = true;
+        
+        g->reset();
         break;
     case VK_ESCAPE:
         g->killed = true;
@@ -167,6 +168,7 @@ void GameHandler::move(int dir) {
 void GameHandler::autoPlay() {
     if (!this->game)
         return;
+    Sleep(1000);
     this->game->renderEvents.push_back([](AbstractRenderer& r) -> void {
             r.renderString(r.subWidth + 2 + r.startX + 3, 11, "avg:");
             r.renderString(r.subWidth + 2 + r.startX + 3 + 4, 11, std::to_string(0));
@@ -215,7 +217,9 @@ void GameHandler::autoPlay() {
 
         while (this->game->fall()) {
         }
-        //Sleep(50);
+        this->game->logicUpdate();
+        this->game->renderUpdate();
+        Sleep(1000);
     }
 }
 
@@ -223,10 +227,6 @@ bool GameHandler::isSolid(int x, int y) {
     if (!this->game)
         return false;
     return this->game->mapValid(x, y);
-}
-
-bool GameHandler::gameover() {
-    return this->game->gameover;
 }
 
 void GameHandler::exit() {
@@ -257,11 +257,13 @@ std::vector<int> GameHandler::getInfo() {
 float weightEvaluate(tetris::Tetris* game) {
 
     std::vector<int> info = game->getInfo();
-    float weight = -info[1];
+    float negHoles = info[1];
     //TODO ”≈ªØ
     int height = info[0];
 
     int bumpiness = info[2];
 
-    return weight * 2 - height * height * height - bumpiness;
+    int new_cleared_lines = info[4];
+
+    return negHoles * 10 - height * height * height - bumpiness + new_cleared_lines * 2;
 }

@@ -20,11 +20,17 @@ const std::map<char, void (*)(tetris::Tetris*)> callableFunctions{
 	}},//get_current_piece
 	{ '3', [](tetris::Tetris* game) {
 		std::cout << "[Callback] ";
-		std::cout << "(" << game->currentBox->posX << ',' << game->currentBox->posY << ")";
+		std::cout << "(" << game->currentBox->posX << ',' << game->currentBox->posY << ")" << std::endl;
 	}},//get_piece_pos
 	{ '4', [](tetris::Tetris* game) {
 		std::cout << "[Callback] " << game->currentBox->state << std::endl;
 	}},//get_piece_rotate
+	{ '5', [](tetris::Tetris* game) {
+		std::cout << "[Callback] " << '(' << game->width << ',' << game->height << ')' << std::endl;
+	}},//get_rect
+	{ '6', [](tetris::Tetris* game) {
+		std::cout << "[Callback] " << game->gameover << std::endl;
+	}}
 };
 
 class GameHandler {
@@ -41,7 +47,6 @@ public:
 	void move(int);
 	void autoPlay();
 	bool isSolid(int x, int y);
-	bool gameover();
 	void exit();
 	void restart();
 	void setPos(int x, int r);

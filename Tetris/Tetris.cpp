@@ -323,6 +323,8 @@ void tetris::Tetris::reset() {
 	delete this->map;
 	this->map = new unsigned int[subHeight] {0};
 	this->score = 0;
+	this->currentBox = new tetris::Box(this);
+	this->gameover = false;
 }
 
 void tetris::Tetris::setPos(int x, int rotate) {
